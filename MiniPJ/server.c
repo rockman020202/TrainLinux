@@ -87,13 +87,7 @@ int main(int argc, char *argv[]) {
         sendbuff[strcspn(sendbuff, "\n")] = 0;
 
         /* Gửi phản hồi đến client */
-        char buffer[256];
-        int bytes_received = recv(server_fd, buffer, sizeof(buffer), 0);
-        if (bytes_received > 0) {
-            buffer[bytes_received] = '\0';  // Đảm bảo chuỗi kết thúc
-            printf("Server says: %s\n", buffer);
-            fflush(stdout);  // Đảm bảo in ra ngay
-        }
+        send(client_fd, sendbuff, strlen(sendbuff), 0);
         
     }
 

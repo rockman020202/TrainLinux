@@ -9,7 +9,7 @@
 
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
-#define LISTEN_PORT 8080
+#define LISTEN_PORT 8082
 
 typedef struct {
     char peer_ip[INET_ADDRSTRLEN];
@@ -33,6 +33,26 @@ void print_help() {
     printf("send        - Send message\n");
     printf("exit        - Exit the program\n");
 }
+
+void *receive_from_server(void *arg) {
+    int sock = *(int *)arg;
+    char buffer[BUFFER_SIZE];
+
+    while (1) {
+        memset(buffer, 0, BUFFER_SIZE);
+        int bytes_received = recv(sock, buffer, BUFFER_SIZE, 0);
+        if (bytes_received <= 0) {
+            printf("Disconnected from server.\n");
+            close(sock);
+            pthread_exit(NULL);
+        }
+        printf("\n[Server]: %s\n", buffer);
+        fflush(stdout); // Đảm bảo tin nhắn hiển thị ngay lập tức
+    }
+    return NULL;
+}
+
+
 
 void connect_to_peer(char *dest_ip, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -68,6 +88,11 @@ void connect_to_peer(char *dest_ip, int port) {
     connections[connection_count].peer_port = port;
     connections[connection_count].socket_fd = sock;
     connection_count++;
+
+    // Tạo thread để nhận tin nhắn từ server
+    pthread_t recv_thread;
+    pthread_create(&recv_thread, NULL, receive_from_server, &sock);
+    pthread_detach(recv_thread);
 }
 
 void list_connections() {
@@ -228,8 +253,9 @@ void process_command(char *command) {
 }
 
 int main() {
-    pthread_create(&receive_thread, NULL, receive_messages, NULL);
+    // pthread_create(&receive_thread, NULL, receive_messages, NULL);
     char command[BUFFER_SIZE];
+    char sendbuff[BUFFER_SIZE], recvbuff[BUFFER_SIZE];
     while (1) {
         printf("CLI> ");
         fgets(command, BUFFER_SIZE, stdin);

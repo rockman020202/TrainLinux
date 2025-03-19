@@ -1,9 +1,11 @@
 
 all:
-	gcc main.c -o main -pthread
+	gcc client.c -o client -pthread
+	gcc server.c -o server -pthread
+
 
 BBB:
-	$(GCC) -o main main.c
+	$(GCC) -o client client.c
 
 clean:
-	rm -rf main
+	rm -rf client server

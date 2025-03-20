@@ -1,3 +1,4 @@
+CLient.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,26 +47,24 @@ void *receive_from_server(void *arg) {
             close(sock);
             pthread_exit(NULL);
         }
-        printf("\n[Server]: %s\n", buffer);
-        fflush(stdout); // Đảm bảo tin nhắn hiển thị ngay lập tức
+        printf("[Server]: %s\n", buffer);
+        fflush(stdout); // Make sure messages appear immediately
     }
     return NULL;
 }
-
-
 
 void connect_to_peer(char *dest_ip, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_addr;
 
-    // Tạo socket TCP
+    // Create socket TCP
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("Socket creation failed");
         return;
     }
 
-    // Cấu hình địa chỉ server
+    // Server address configuration
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
     if (inet_pton(AF_INET, dest_ip, &server_addr.sin_addr) <= 0) {
@@ -74,7 +73,7 @@ void connect_to_peer(char *dest_ip, int port) {
         return;
     }
 
-    // Kết nối đến server
+    // Connect to server
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         close(sock);
@@ -89,7 +88,7 @@ void connect_to_peer(char *dest_ip, int port) {
     connections[connection_count].socket_fd = sock;
     connection_count++;
 
-    // Tạo thread để nhận tin nhắn từ server
+    // Create thread to receive messages from server
     pthread_t recv_thread;
     pthread_create(&recv_thread, NULL, receive_from_server, &sock);
     pthread_detach(recv_thread);
@@ -150,8 +149,7 @@ void get_my_ip() {
 
 void *handle_client(void *arg) {
     int client_sock = *(int *)arg;
-    free(arg);
-    
+    free(arg); 
     char buffer[BUFFER_SIZE];
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
@@ -164,50 +162,6 @@ void *handle_client(void *arg) {
         printf("\nReceived: %s\n", buffer);
     }
     return NULL;
-}
-
-void *receive_messages(void *arg) {
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t addr_size;
-
-    server_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sock < 0) {
-        perror("Socket creation failed");
-        exit(EXIT_FAILURE);
-    }
-
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(LISTEN_PORT);
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
-    }
-
-    if (listen(server_sock, MAX_CLIENTS) < 0) {
-        perror("Listen failed");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Listening for incoming messages on port %d...\n", LISTEN_PORT);
-
-    while (1) {
-        addr_size = sizeof(client_addr);
-        int *client_sock = malloc(sizeof(int));
-        *client_sock = accept(server_sock, (struct sockaddr *)&client_addr, &addr_size);
-        if (*client_sock < 0) {
-            perror("Accept failed");
-            free(client_sock);
-            continue;
-        }
-
-        printf("Client connected: %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
-        pthread_t client_thread;
-        pthread_create(&client_thread, NULL, handle_client, client_sock);
-        pthread_detach(client_thread);
-    }
 }
 
 void send_message(int id, char *message) {
@@ -253,7 +207,6 @@ void process_command(char *command) {
 }
 
 int main() {
-    // pthread_create(&receive_thread, NULL, receive_messages, NULL);
     char command[BUFFER_SIZE];
     char sendbuff[BUFFER_SIZE], recvbuff[BUFFER_SIZE];
     while (1) {
@@ -262,5 +215,100 @@ int main() {
         command[strcspn(command, "\n")] = 0;
         process_command(command);
     }
+    return 0;
+}
+
+server.c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+
+#define BUFF_SIZE 256
+#define LISTEN_BACKLOG 5
+
+int client_fd;
+
+// Function to handle receiving messages from client
+void *receive_messages(void *arg) {
+    char recvbuff[BUFF_SIZE];
+    while (1) {
+        memset(recvbuff, 0, BUFF_SIZE);
+        int bytes_received = recv(client_fd, recvbuff, BUFF_SIZE, 0);
+        if (bytes_received <= 0) {
+            printf("Client disconnected.\n");
+            close(client_fd);
+            exit(0);
+        }
+        printf("\nClient: %s\n", recvbuff);
+    }
+    return NULL;
+}
+
+int main(int argc, char *argv[]) {
+    int server_fd;
+    struct sockaddr_in server_addr, client_addr;
+    socklen_t addr_size;
+    char sendbuff[BUFF_SIZE];
+    pthread_t recv_thread;
+
+    if (argc < 2) {
+        printf("Usage: %s <port>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+    
+    int port_no = atoi(argv[1]);
+
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(port_no);
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Bind failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(server_fd, LISTEN_BACKLOG) == -1) {
+        perror("Listen failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server is listening on port %d...\n", port_no);
+
+    addr_size = sizeof(client_addr);
+    client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_size);
+    if (client_fd == -1) {
+        perror("Accept failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Client connected from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+    // Create a message receiving thread
+    pthread_create(&recv_thread, NULL, receive_messages, NULL);
+    pthread_detach(recv_thread);
+
+    // Main thread sends messages
+    while (1) {
+        printf("Reply to client: ");
+        fgets(sendbuff, BUFF_SIZE, stdin);
+        sendbuff[strcspn(sendbuff, "\n")] = 0;
+        send(client_fd, sendbuff, strlen(sendbuff), MSG_NOSIGNAL);
+    }
+
+    close(client_fd);
+    close(server_fd);
     return 0;
 }

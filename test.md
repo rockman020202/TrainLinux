@@ -1,1 +1,2 @@
 localhost:61389/oauth2redirect?state=b0e0f348-67ac-4821-aea4-4838a245359b&code=4/0ASc3gC102ei-7fBVy8xcZMwyYVoN8CPQYznPxG5XLfLr_CVITtku1A6tR-BbEcSYe2Z_wQ&scope=email%20profile%20https://www.googleapis.com/auth/cloud-platform%20https://www.googleapis.com/auth/userinfo.email%20https://www.googleapis.com/auth/userinfo.profile%20openid&authuser=2&prompt=consent
+https://telekomhu.udemy.com/
